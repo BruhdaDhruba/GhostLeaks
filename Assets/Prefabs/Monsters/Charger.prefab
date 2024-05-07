@@ -399,6 +399,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 264
   JumpscareScene: JumpscareCharger
+  MonsterVolume: {fileID: 3308436140841353308}
   groundLayer:
     serializedVersion: 2
     m_Bits: 256
@@ -491,10 +492,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   PlayerScore: {fileID: 0}
-  viewerAddAmount: 1
-  viewerRemoveAmount: 0.5
+  viewerAddAmount: 1.5
+  viewerRemoveAmount: 1
   generatorSpeed: 1
-  increaseAndDecrease: 0
+  increaseAndDecrease: 1
   inFieldOfView: 0
   viewerRequest: 0
   mult: 1

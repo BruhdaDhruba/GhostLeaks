@@ -1,5 +1,4 @@
 /**
-    *   
     * This script connects to the main camera 
     * so that when you look at a monster you
     * generate a score. A prerequisite is
@@ -25,8 +24,9 @@ public class BoxCast : MonoBehaviour
     */
     
     //Init of detection components
+    [Tooltip("How far the boxcast goes")]
     public float maxDistance;
-    [Tooltip("The 'offset' from the player forward which the sphere will start from  ")]
+    [Tooltip("The 'offset' from the player forward which the box will start from")]
     public float minDistance;
     private Vector3 boxCastOffset;
     private Vector3 playerDirection;
@@ -34,7 +34,9 @@ public class BoxCast : MonoBehaviour
     [SerializeField] LayerMask layerMask;
     
     //BoxCast adjustments 
+    [Tooltip("The orientation of the boxcast")]
     public Quaternion boxOrientation;
+    [Tooltip("The width of the boxcast")]
     public Vector3 halfBox; 
 
 
@@ -45,20 +47,35 @@ public class BoxCast : MonoBehaviour
     //References to other scripts
     RandomMonsterGeneration randomMonsterGeneration;
     MonsterGenerateViewers monsterViewer;
-    //ChangeColour changeColour;
-
+    //ChangeColour changeColour;        //To be added later
+    ChatGeneration chatGeneration;
+    PlayerScore playerScore;
+    InGameInterface inGameInterface;
 
     //Random indexing for monsterRequests 
     private int ranReqIndex;
 
     //Timer for the monster requests 
+    [Tooltip("How often viewers should request a monster")]
     public float viewerRequestTime;
+    private float viewerRequestTimeInit;
+    //Timer for how often the chat should appear
+    [Tooltip("How often a viewer should send a message in chat")]
+    public float chatTimeInterval;
+    private float chatTimeIntervalInit;
+
+    //Where viewer messages will be stored from ChatGeneration.cs 
+    private string viewerMsg;
+    //Bool that makes it so messages don't overlap
+    private bool extraBreak;
 
 
     void Start(){
         //Request time is initilized to 60 seconds
-        viewerRequestTime = 60.0f;
+        viewerRequestTimeInit = viewerRequestTime;
+        chatTimeIntervalInit = chatTimeInterval;
     }
+
 
 
     void FixedUpdate(){
@@ -67,12 +84,14 @@ public class BoxCast : MonoBehaviour
         playerDirection = transform.forward;
         boxOrientation = transform.rotation;
 
-        //Updating the timer
+
+        //Updating the timers
         viewerRequestTime -= Time.deltaTime;
+        chatTimeInterval -= Time.deltaTime; 
+
 
         //Handles the requests from viewers
         viewerRequest();
-
 
         /*
         //Clears the gameObject list each frame(Used for debugging)
@@ -95,12 +114,10 @@ public class BoxCast : MonoBehaviour
             GameObject hitObject = hit.collider.gameObject;
             MonsterGenerateViewers monsterGenerates = hitObject.GetComponent<MonsterGenerateViewers>();
   
-
             //If not seen before, add monster to seen monsters list(used for random viewerRequest)
             if(!seenMonsters.Contains(hitObject) && hit.transform.tag == "Monster"){
                 seenMonsters.Add(hitObject);
             }
-
 
             //seen and spawned monsters are checked so only their unqiue ID triggers pointed raycast. 
             if(hit.transform.tag == "Monster"){
@@ -126,38 +143,82 @@ public class BoxCast : MonoBehaviour
                         monsterInFov.Add(monsterGenerates);
                     }
                     monsterGenerates.inFieldOfView = true;
-
-                    }
-
+                }
             }
         }
     }
     
 
-
     void viewerRequest(){
+        extraBreak = false;
+        
         //After a certain time a seen monster will reset their viewer multiplier and be requested by the chat. 
-        if(viewerRequestTime < 1.0f && seenMonsters.Count > 0){
+        //If nothing is seen in set amount of time the chat will be bored.
+        if(chatTimeInterval < 2.2f){
+            //Getting the viewercount from the PlayerScore.cs
+            GameObject pScore = GameObject.Find("Main Camera");
+            playerScore = pScore.GetComponent<PlayerScore>();    
+            
+            //Goes through all of the monsters that's in the field of view, if that's true we send a message to the UI
+            for(int i = 0; i < monsterInFov.Count; i++){
+                if(monsterInFov[i].inFieldOfView == true || playerScore.viewers > 50){
+                    getChat();
+                    viewerMsg = chatGeneration.GenerateMessage("Positive");
+                    inGameInterface.PrintMessage(viewerMsg,"baseline_person_white_icon");
+                    chatTimeInterval = chatTimeIntervalInit/2;
+                    extraBreak = true;
+                    break;
+                }
+            }
+            
+            //The case if the player doesn't see a monster 
+            if(extraBreak == false && playerScore.viewers < 50){
+                getChat();
+                viewerMsg = chatGeneration.GenerateMessage("Negative");
+                inGameInterface.PrintMessage(viewerMsg,"baseline_person_white_icon");
+                //Resetting the timers
+                chatTimeInterval = chatTimeIntervalInit;
+            }
+        }
+
+        if(viewerRequestTime < 1.0f && seenMonsters.Count > 0 && chatTimeInterval < 2.0f){
+
+            //Randomly selects a seen monster to be requested and resets the multipler of it,
             ranReqIndex = Random.Range(0,seenMonsters.Count);
             MonsterGenerateViewers reqMonster = seenMonsters[ranReqIndex].GetComponent<MonsterGenerateViewers>();
             reqMonster.mult = 1.0f;     
             //ChangeColour colourMonster = seenMonsters[ranReqIndex].GetComponent<ChangeColour>(); //SHOULD BE PUT IN BELOW WHEN ADDED TO DEV
             //seenMonster[ranReqIndex].gameObject.Colour
-            print("I want to see the " + "PUT IN COLOUR OF MONSTER" + " " + seenMonsters[ranReqIndex].gameObject.name);
-            viewerRequestTime = 60.0f;
-        }
-        //If we haven't seen a monster we reset the request time.  
-        if(viewerRequestTime < 0.5f){
-            print("Cmooon find a monsteeeer");
-            viewerRequestTime = 30.0f;
+
+
+            getChat();
+            //Color is to be replaced with the color of the monster to finalize viewer message
+            viewerMsg = ("I want to see the " + "COLOR " + seenMonsters[ranReqIndex].gameObject.name);
+
+            inGameInterface.PrintMessage(viewerMsg,"baseline_person_white_icon");
+            //Resets the timers
+            viewerRequestTime = viewerRequestTimeInit;
+            chatTimeInterval = chatTimeIntervalInit;
         }
     }
     
+
+
     //Debugging by creating the raycast box and line towards the box
     private void OnDrawGizmosSelected() {
         Gizmos.color = Color.red;
         Debug.DrawLine(transform.position, boxCastOffset + playerDirection * maxDistance);
         Gizmos.DrawWireCube(boxCastOffset + playerDirection * maxDistance , halfBox/2);
+    }
+
+    /*
+        * Gets the chat reference from ChatManager and the ingame interface
+    */
+    private void getChat(){
+        GameObject uiElem = GameObject.Find("In Game Interface");
+        inGameInterface = uiElem.GetComponent<InGameInterface>(); 
+        GameObject chatGenerationGameObject = GameObject.Find("ChatManager");
+        chatGeneration = chatGenerationGameObject.GetComponent<ChatGeneration>();
     }
 
 

@@ -511,7 +511,8 @@ MonoBehaviour:
   boxOrientation: {x: 0, y: 0, z: 0, w: 0}
   halfBox: {x: 15, y: 5, z: 0.1}
   seenMonsters: []
-  viewerRequestTime: 0
+  viewerRequestTime: 30
+  chatTimeInterval: 5
 --- !u!108 &3787276491942127044
 Light:
   m_ObjectHideFlags: 0
@@ -1035,7 +1036,7 @@ PrefabInstance:
     - target: {fileID: 3866671699950647691, guid: 284e0ca2c1a77284db569c761241378d,
         type: 3}
       propertyPath: generateDebugMessages
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4217058648100541030, guid: 284e0ca2c1a77284db569c761241378d,
         type: 3}
